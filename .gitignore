@@ -2,7 +2,7 @@
 # Created by https://www.gitignore.io/api/osx,linux,python,windows,pycharm,visualstudiocode
 
 # File with parameters
-./get_current_price/parameters.yml
+.get_current_price/parameters.yml
 
 #AWS Build
 .aws-sam

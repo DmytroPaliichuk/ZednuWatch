@@ -1,0 +1,95 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS
+
+  Sample SAM Template for AWS
+
+  '
+Globals:
+  Function:
+    Tags:
+    - Key: Project
+      Value: ZednuWatch
+    - Key: Environment
+      Value: PROD
+    Timeout: 5
+Outputs:
+  ResExecutionAndWritingDBRoleGetAtt:
+    Description: 'GetAtt of ResExecutionAndWritingDBRole '
+    Value:
+      Fn::GetAtt:
+      - ResExecutionAndWritingDBRole
+      - Arn
+Resources:
+  GetCurrentPrice:
+    Properties:
+      CodeUri: s3://btc-trade-tracker-deployment/5a8aa3b839a8fc3d070d49166f3df34a
+      FunctionName: GetCurrentPrice
+      Handler: app.lambda_handler
+      Role:
+        Fn::GetAtt:
+        - ResExecutionAndWritingDBRole
+        - Arn
+      Runtime: python3.7
+      Tags:
+        Environment: PROD
+        Project: ZednuWatch
+    Type: AWS::Serverless::Function
+  PermissionForEventsToInvokeLambda:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: GetCurrentPrice
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+        - ScheduledRule
+        - Arn
+    Type: AWS::Lambda::Permission
+  ResExecutionAndWritingDBRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      RoleName: ExecutionAndWritingDBRole
+      Tags:
+      - Key: Project
+        Value: ZednuWatch
+      - Key: Environment
+        Value: PROD
+    Type: AWS::IAM::Role
+  ScheduledRule:
+    Properties:
+      Description: ScheduledRule
+      Name: ScheduledRuleForLambda
+      ScheduleExpression: rate(2 minutes)
+      State: ENABLED
+      Targets:
+      - Arn:
+          Fn::GetAtt:
+          - GetCurrentPrice
+          - Arn
+        Id: TargetLambdaFunction
+    Type: AWS::Events::Rule
+  SimpleTableDynamoDB:
+    Properties:
+      PrimaryKey:
+        Name: id
+        Type: Number
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableName: TradePrice
+      Tags:
+        Environment: PROD
+        Project: ZednuWatch
+    Type: AWS::Serverless::SimpleTable
+Transform: AWS::Serverless-2016-10-31

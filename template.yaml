@@ -1,0 +1,91 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  AWS
+
+  Sample SAM Template for AWS
+
+
+Globals:
+    Function:
+        Timeout: 5
+        Tags:
+          - Key: Project
+            Value: ZednuWatch
+          - Key: Environment
+            Value: PROD
+
+Resources:
+
+  ResExecutionAndWritingDBRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ExecutionAndWritingDBRole
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+        - 'arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Tags:
+        - Key: Project
+          Value: ZednuWatch
+        - Key: Environment
+          Value: PROD
+
+  GetCurrentPrice:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: GetCurrentPrice
+      CodeUri: get_current_price/
+      Handler: app.lambda_handler
+      Runtime: python3.7
+      Role: !GetAtt ResExecutionAndWritingDBRole.Arn
+      Tags:
+        Project: ZednuWatch
+        Environment: PROD
+
+  ScheduledRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ScheduledRuleForLambda
+      Description: "ScheduledRule"
+      ScheduleExpression: "rate(2 minutes)"
+      State: "ENABLED"
+      Targets:
+        - Arn: !GetAtt GetCurrentPrice.Arn
+          Id: "TargetLambdaFunction"
+
+  PermissionForEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Ref: GetCurrentPrice
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt ScheduledRule.Arn
+
+  SimpleTableDynamoDB:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      TableName: TradePrice
+      PrimaryKey:
+        Name: id
+        Type: Number
+      ProvisionedThroughput:
+        WriteCapacityUnits: 5
+        ReadCapacityUnits: 5
+      Tags:
+        Project: ZednuWatch
+        Environment: PROD
+
+Outputs:
+    ResExecutionAndWritingDBRoleGetAtt:
+        Description: "GetAtt of ResExecutionAndWritingDBRole "
+        Value: !GetAtt ResExecutionAndWritingDBRole.Arn
